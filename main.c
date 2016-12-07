@@ -33,7 +33,7 @@ void GPIO_init(){
 	GPIOB->OSPEEDR = GPIOB->OSPEEDR | 0x540;
 
 
-	GPIOC->MODER = (GPIOC->MODER & 0xffff0000) | 0x5500;
+	GPIOC->MODER = (GPIOC->MODER & 0xf3ff0000) | 0x5500;
 	GPIOC->OSPEEDR = GPIOC->OSPEEDR | 0x5500;
 	GPIOC->PUPDR = GPIOC->PUPDR | 0xAA;
 }
@@ -42,9 +42,43 @@ void SysTick_Handler(){
 	flag = !flag;
 	GPIOB->ODR = flag << 3;
 }
+
+void debounce(){
+	int k =0 ;
+	for(int i=5500;i>=0;i--){
+		k++;
+	}
+}
+int sysflag = 1;
+void read_button(){
+	int button = (GPIOC->IDR & (1<<13)) >> 13;
+	if(!button){
+
+		debounce();
+		button = (GPIOC->IDR & (1<<13)) >> 13;
+		if (!button){
+			return;
+		}
+		debounce();
+	}
+	else{
+		return;
+	}
+
+	if (sysflag){
+		SysTick->CTRL &= 0xfffffffe;
+		sysflag = 0;
+	}
+	else{
+		SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
+		sysflag = 1;
+	}
+}
 int main(){
 	system_clock_config();
 	GPIO_init();
 	systick_init();
-
+	while(1){
+		read_button();
+	}
 }
