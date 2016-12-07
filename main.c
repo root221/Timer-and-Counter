@@ -6,9 +6,9 @@ extern void GPIOINIT();
 extern void display(int val);
 extern void MAX7219INIT();
 int pattern = 0;
-int freqs[5] = {1,6,10,16,40};
-uint32_t TIM_ARR_VAL = 9999;
-uint32_t TIM_PSC_VAL = 999;
+
+uint32_t TIM_ARR_VAL = 34118;
+uint32_t TIM_PSC_VAL = 0;
 void system_clock_config(){
 		// 10M Hz
 		RCC->CFGR &= 0xfffff000;
@@ -37,27 +37,63 @@ void initailize_timer(){
 }
 void timer_start(){
 	TIM2->CR1 |= 1;
-	int pre = 0;
-	int sec = 0;
-	while(1){
-		int timer_value = TIM2->CNT;
-		if (pre > timer_value){
-			sec ++;
-		}
-		int limit = TIME_SEC * 10000;
-		if (limit < (sec*10000 + timer_value)){
-			display(limit / 100);
-			break;
-		}
-		pre = timer_value;
-		timer_value /= 100;
-		display(sec*100 + timer_value);
-	}
+}
+void GPIO_init(){
+	RCC->AHB2ENR = RCC->AHB2ENR | 0x6 ;
+	//Set PB3,PB4,PB5 as output mode
+	GPIOB->MODER = (GPIOB->MODER & 0xfffff03f) | 0xA80;
+	GPIOB->OSPEEDR = GPIOB->OSPEEDR | 0x540;
+
+
+	GPIOC->MODER = (GPIOC->MODER & 0xffff0000) | 0x5500;
+	GPIOC->OSPEEDR = GPIOC->OSPEEDR | 0x5500;
+	GPIOC->PUPDR = GPIOC->PUPDR | 0xAA;
+}
+void GPIO_init_AF(){
+	GPIOB->AFR[0] |= GPIO_AFRL_AFSEL3_0;
+}
+void PWM_channel_init(){
+	TIM2->CCR2 = (uint32_t)0;
+	TIM2->CCMR1 |= 110 << 12; // PWN mode1
+	TIM2->CCMR1 |= TIM_CCMR1_OC2PE;
+	TIM2->CR1 |= TIM_CR1_ARPE ;
+	TIM2->CCER |= TIM_CCER_CC2E;
+}
+clear(){
+	TIM2->CR1 &= 0xfffffffe;
 }
 int main(){
 	system_clock_config();
-	GPIOINIT();
-	MAX7219INIT();
+	//GPIOINIT();
+	GPIO_init();
+	//MAX7219INIT();
+	GPIO_init_AF();
 	initailize_timer();
-	timer_start();
+	//19113
+	PWM_channel_init(17059);
+	int array[16]={0,1,2,-1,3,4,5,-1,6,7,-1,-1,-1,-1,-1,-1};
+	int freqs[8] = {38225,34047,30339,28636,25509,22726,20246,19108};
+	while(1){
+		int press_num=-1;
+		for(int i=3;i>=0;i--){
+			int pos = i + 4;
+			GPIOC->ODR = (1<< pos);
+			int j;
+			for(j=0;j<4;j++){
+				if( ((GPIOC->IDR & 0xf )& (1<<j))!=0){
+					press_num = array[i+j*4];
+					break;
+				}
+			}
+			if(press_num>=0){
+				timer_start();
+				TIM2->CCR2 = (uint32_t)freqs[press_num]/2;
+				TIM2->ARR = (uint32_t)freqs[press_num];
+				delay();
+				if( ((GPIOC->IDR & 0xf )& (1<<j)) == 0)
+					clear();
+				break;
+			}
+		}
+	}
 }

@@ -42,7 +42,7 @@ GPIOINIT:
 	ldr r1, =RCC_AHB2ENR
 	str r0, [r1]
 	// set PB 3, 4, 5 as output mode
-	movs r0, #0x540
+	movs r0, #0xA80
 	ldr r1, =GPIOB_MODER
 	ldr r2, [r1]
 	and r2, #0xfffff03f
