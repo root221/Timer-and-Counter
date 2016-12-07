@@ -37,6 +37,8 @@ void initailize_timer(){
 }
 void timer_start(){
 	TIM2->CR1 |= 1;
+	GPIOB->MODER &= 0xffffff3f;
+	GPIOB->MODER |= 0x80;
 }
 void GPIO_init(){
 	RCC->AHB2ENR = RCC->AHB2ENR | 0x6 ;
@@ -61,6 +63,8 @@ void PWM_channel_init(){
 }
 clear(){
 	TIM2->CR1 &= 0xfffffffe;
+	GPIOB->MODER &= 0xffffff7f;
+	GPIOB->ODR = 0;
 }
 int main(){
 	system_clock_config();
@@ -71,8 +75,9 @@ int main(){
 	initailize_timer();
 	//19113
 	PWM_channel_init(17059);
-	int array[16]={0,1,2,-1,3,4,5,-1,6,7,-1,-1,-1,-1,-1,-1};
+	int array[16]={0,1,2,100,3,4,5,200,6,7,-1,-1,-1,-1,-1,-1};
 	int freqs[8] = {38225,34047,30339,28636,25509,22726,20246,19108};
+	int duty = 50;
 	while(1){
 		int press_num=-1;
 		for(int i=3;i>=0;i--){
@@ -86,12 +91,24 @@ int main(){
 				}
 			}
 			if(press_num>=0){
-				timer_start();
-				TIM2->CCR2 = (uint32_t)freqs[press_num]/2;
-				TIM2->ARR = (uint32_t)freqs[press_num];
 				delay();
-				if( ((GPIOC->IDR & 0xf )& (1<<j)) == 0)
-					clear();
+				if (press_num < 100){
+					TIM2->CCR2 = (uint32_t)(freqs[press_num] * duty)/100;
+					TIM2->ARR = (uint32_t)freqs[press_num];
+					timer_start();
+					if( ((GPIOC->IDR & 0xf )& (1<<j)) == 0)
+						clear();
+				}
+				else if (press_num == 100){
+					if (duty < 90){
+						duty += 5;
+					}
+				}
+				else if (press_num == 200){
+					if (duty > 10){
+						duty -= 5;
+					}
+				}
 				break;
 			}
 		}
