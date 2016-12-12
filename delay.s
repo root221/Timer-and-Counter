@@ -65,6 +65,14 @@ GPIOINIT:
 display:
 	push {r4-r11,lr}
 	movs r6, r0
+
+	movs r0, #1
+	movs r1, #0x0F
+	BL MAX7219Send
+	movs r0, #2
+	movs r1, #0x0F
+	BL MAX7219Send
+
 	movs r2, #10
 	movs r11, #1 //counter
 	next_bit:
@@ -72,9 +80,6 @@ display:
 		sdiv r3, r6, r2
 		mul r5, r3, r2
 		subs r1, r6, r5
-		cmp r11, #3
-		it eq
-		addeq r1, #0xF0
 		BL MAX7219Send
 		add r11, #1
 		movs r6, r3
@@ -94,7 +99,7 @@ MAX7219INIT:
 	ldr r1, =#0x00
 	BL MAX7219Send
 	ldr r0, =#SCAN_LIMIT
-	ldr r1, =0x07
+	ldr r1, =0x01
 	BL MAX7219Send
 	ldr r0, =#INTENSITY
 	ldr r1, =#0x0f
@@ -104,28 +109,10 @@ MAX7219INIT:
 	BL MAX7219Send
 	//ldr r0, =DIGIT0
 	//movs r1, #1
-	movs r0, #3
-	movs r1, #0x80
-	BL MAX7219Send
 	movs r0, #1
 	movs r1, #0x0F
 	BL MAX7219Send
 	movs r0, #2
-	movs r1, #0x0F
-	BL MAX7219Send
-	movs r0, #4
-	movs r1, #0x0F
-	BL MAX7219Send
-	movs r0, #5
-	movs r1, #0x0F
-	BL MAX7219Send
-	movs r0, #6
-	movs r1, #0x0F
-	BL MAX7219Send
-	movs r0, #7
-	movs r1, #0x0F
-	BL MAX7219Send
-	movs r0, #8
 	movs r1, #0x0F
 	BL MAX7219Send
 	pop {r4-r11,pc}
