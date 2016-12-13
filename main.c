@@ -138,7 +138,8 @@ void EXTI13_IRQHandler(void){
 	if(current_state == 0){
 		SysTick->LOAD = (uint32_t) 10000000;
 		sec = key;
-		current_state = 1; //count down
+		if(sec>0)
+			current_state = 1; //count down
 
 	}
 	else if(current_state == 2){
@@ -152,6 +153,7 @@ void EXTI13_IRQHandler(void){
 
 void EXTI0_IRQHandler(void){
 	if(current_state != 0){
+		EXTI->PR1 |= 0xf;
 		return;
 	}
 	int value = EXTI->PR1;
@@ -164,8 +166,12 @@ void EXTI0_IRQHandler(void){
 	else if(value==8)
 		value = 3;
 
-
+	if(Array[4*value+col]==0){
+		EXTI->PR1 |= 0xf;
+		return;
+	}
 	key = Array[4*value+col];
+
 	display(key);
 	debounce();
 	EXTI->PR1 |= 0xf;
@@ -177,8 +183,8 @@ int main(){
 	GPIO_init();
 	systick_init();
 	GPIO_init_AF();
-	PWM_channel_init();
 	initailize_timer();
+	PWM_channel_init();
 	MAX7219INIT();
 	EXTI_Setup();
 
