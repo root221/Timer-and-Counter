@@ -8,7 +8,7 @@
 	.equ BSRR_OFFSET, 0x18
   	.equ BRR_OFFSET, 0x28
     	.equ cs, 0x10  //gpiob pin4 0b10000
-    	.equ din, 0x8  //pb pin3 0b1000
+    	.equ din, 0x1//pb pin0 0b1000
     	.equ clk, 0x20 //pb pin5 0b100000
     	.equ DISPLAY_TEST, 0x0F
     	.equ SCAN_LIMIT, 0x0B
