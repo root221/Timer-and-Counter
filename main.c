@@ -2,8 +2,9 @@
 #include "stm32l476xx.h"
 #include "core_cm4.h"
 #define LCD_RSPin 13
-#define LCD_RWPin 14
-#define LCD_ENPin 15
+#define LCD_RWPin 5
+#define LCD_ENPin 6
+
 void systick_init(){
 	SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
@@ -31,20 +32,20 @@ void system_clock_config(){
 }
 void GPIO_init(){
 	RCC->AHB2ENR = RCC->AHB2ENR | 0x7;
-	//Set PB3,PB4,PB5 as output mode
-	//GPIOB->MODER = (GPIOB->MODER & 0xfffff03f) | 0x540;
-	//GPIOB->OSPEEDR = GPIOB->OSPEEDR | 0x540;
 
-
-	//GPIOC->MODER = (GPIOC->MODER & 0xffff0000) | 0x5500;
-	//GPIOC->OSPEEDR = GPIOC->OSPEEDR | 0x5500;
-	//GPIOC->PUPDR = GPIOC->PUPDR | 0xAA;
 	GPIOC->MODER = (GPIOC->MODER & 0x03ffffff) | 0x54000000;
-	GPIOC->PUPDR = (GPIOC->PUPDR & 0x03ffffff) | 0x54000000;
+	GPIOC->PUPDR = (GPIOC->PUPDR & 0x03ffffff) | 0xA8000000;
 	GPIOC->OSPEEDR = (GPIOC->OSPEEDR & 0x03ffffff) | 0x54000000;
+	GPIOB->MODER =  (GPIOB->MODER & 0xffff0000) |0x5555 ;
+	GPIOB->PUPDR = (GPIOB->PUPDR & 0xffff0000) | 0xAAAA;
+	GPIOB->OSPEEDR = (GPIOB->OSPEEDR & 0xffff0000) | 0x5555;
+	GPIOB->OTYPER = 0;
+
 	GPIOA->MODER =  (GPIOA->MODER & 0xffff0000) |0x5555 ;
-	GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff0000) | 0x5555;
+	GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff0000) | 0xAAAA;
 	GPIOA->OSPEEDR = (GPIOA->OSPEEDR & 0xffff0000) | 0x5555;
+	GPIOA->OTYPER = 0;
+	//GPIOB->ODR = 0xff;
 }
 int flag = 0;
 void SysTick_Handler(){
@@ -53,52 +54,73 @@ void SysTick_Handler(){
 }
 void wait(){
 	int k=0;
-	for(int i=0;i<2000;i++){
+	for(int i=0;i<5500;i++){
 		k = k + 1;
 	}
 }
 int write_to_LCD(int input,int is_cmd){
-    if(is_cmd){
+    if(is_cmd==1){
     		//GPIOC->BSRR &= 0xffffefff;
-    		GPIOC->BRR |= 1 <<(LCD_RSPin - 1);
+    		GPIOC->BRR |= 1 <<(LCD_RSPin );
     		//GPIOC->BSRR |= 1 << (LCD_RSPin - 1);
 
-    		GPIOC->BRR |= 1 <<(LCD_RWPin - 1);
+    		GPIOA->BRR |= 1 <<(LCD_RWPin);
 
-    		for(int index=0;index<8;index++){
+    		/*for(int index=0;index<8;index++){
     			int set = input & (1 << index);
     			if(set){
     				GPIOA->BSRR |= (1<<index);
     			}
     			else
     				GPIOA->BRR |= (1<<index);
-    		}
-    		GPIOC->BSRR &= 0xffffbfff;
-    		GPIOC->BSRR |= 1 << (LCD_ENPin-1);
+    		}*/
+    		GPIOB->BRR |= 0xff;
+    		GPIOB->BSRR |= input;
+    		GPIOA->BSRR |= 1 << (LCD_ENPin);
     		wait();
-    		GPIOC->BRR &= 0xffffbfff;
-    		GPIOC->BRR |= 1<< (LCD_ENPin-1);
+
+    		GPIOA->BRR |= 1<< (LCD_ENPin);
+    		wait();
     }
+
 }
 
 void init_LCD(){
-    write_to_LCD(0x38,1);//function setting 00111000
-    write_to_LCD(0x06,1);
-    write_to_LCD(0x0C,1); //display on  00001000
+
+//	write_to_LCD(0x30,1);
+//	write_to_LCD(0x30,1);
+//	write_to_LCD(0x30,1);
+//	write_to_LCD(0x20,1);
+	write_to_LCD(0x38,1);//function setting 00111000
+	write_to_LCD(0x06,1);
+	write_to_LCD(0x0f,1); //display on  00001110
+
     write_to_LCD(0x01,1);//clear screen  00000001
-    write_to_LCD(0x80,1);//MOVE to top left 0000 0010
+
+
+  //  write_to_LCD(0x80,1);//MOVE to top left 0000 0010
 }
 
 
 
 
 int main(){
-	system_clock_config();
+//	system_clock_config();
 	GPIO_init();
 	init_LCD();
 	//systick_init();
-	GPIOC->BSRR |= 1 <<(LCD_RSPin - 1);
+	//GPIOC->BSRR |= 1 <<(LCD_RSPin - 1);
     while(1){
 
     }
 }
+/*
+PB 3 3.3
+PB 4 3.3
+PB 5 3.3
+PB 2 3.3
+PB 1 3.3
+PB 0 3.3
+PB 6 3.3
+PB 7 3.3
+*/
