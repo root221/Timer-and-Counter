@@ -47,11 +47,7 @@ void GPIO_init(){
 	GPIOA->OTYPER = 0;
 	//GPIOB->ODR = 0xff;
 }
-int flag = 0;
-void SysTick_Handler(){
-	flag = !flag;
-	GPIOB->ODR = flag << 3;
-}
+
 void wait(){
 	int k=0;
 	for(int i=0;i<5500;i++){
@@ -59,60 +55,59 @@ void wait(){
 	}
 }
 int write_to_LCD(int input,int is_cmd){
-    if(is_cmd==1){
-    		//GPIOC->BSRR &= 0xffffefff;
+    if(is_cmd==1)
     		GPIOC->BRR |= 1 <<(LCD_RSPin );
-    		//GPIOC->BSRR |= 1 << (LCD_RSPin - 1);
+    	else
+    		GPIOC->BSRR |= 1 << (LCD_RSPin);
+    	GPIOA->BRR |= 1 <<(LCD_RWPin);
+    GPIOB->BRR |= 0xff;
+    	GPIOB->BSRR |= input;
+    	GPIOA->BSRR |= 1 << (LCD_ENPin);
+    	wait();
+    	GPIOA->BRR |= 1<< (LCD_ENPin);
+    	wait();
 
-    		GPIOA->BRR |= 1 <<(LCD_RWPin);
 
-    		/*for(int index=0;index<8;index++){
-    			int set = input & (1 << index);
-    			if(set){
-    				GPIOA->BSRR |= (1<<index);
-    			}
-    			else
-    				GPIOA->BRR |= (1<<index);
-    		}*/
-    		GPIOB->BRR |= 0xff;
-    		GPIOB->BSRR |= input;
-    		GPIOA->BSRR |= 1 << (LCD_ENPin);
-    		wait();
-
-    		GPIOA->BRR |= 1<< (LCD_ENPin);
-    		wait();
-    }
 
 }
+int offset = 16;
+int Array[16]={0x34,0x37,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20};
+void SysTick_Handler(void){
+	if(offset>0){
+		offset--;
 
+		write_to_LCD(0x01,1);
+		for(int i=0;i<16;i++){
+			write_to_LCD(Array[(i + offset)%16],0);
+		}
+	}
+	//else{
+
+	//}
+
+}
 void init_LCD(){
-
-//	write_to_LCD(0x30,1);
-//	write_to_LCD(0x30,1);
-//	write_to_LCD(0x30,1);
-//	write_to_LCD(0x20,1);
-	write_to_LCD(0x38,1);//function setting 00111000
+	write_to_LCD(0x38,1);//function setting 00110000
 	write_to_LCD(0x06,1);
-	write_to_LCD(0x0f,1); //display on  00001110
-
-    write_to_LCD(0x01,1);//clear screen  00000001
-
-
-  //  write_to_LCD(0x80,1);//MOVE to top left 0000 0010
+	write_to_LCD(0x0e,1); //display on  00001110
+	write_to_LCD(0x01,1);//clear screen  00000001
+	write_to_LCD(0x80,1);//MOVE to top left 0000 0010
 }
 
 
 
 
 int main(){
-//	system_clock_config();
+	system_clock_config();
 	GPIO_init();
 	init_LCD();
-	//systick_init();
-	//GPIOC->BSRR |= 1 <<(LCD_RSPin - 1);
-    while(1){
+	systick_init();
 
-    }
+		write_to_LCD(0x34,0); //0011 0100
+		write_to_LCD(0x37,0);
+
+
+
 }
 /*
 PB 3 3.3
