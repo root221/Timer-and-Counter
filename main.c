@@ -9,7 +9,7 @@ void systick_init(){
 	SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
 	SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk;
-	SysTick->LOAD = (uint32_t) 5000000;
+	SysTick->LOAD = (uint32_t) 2500000;
 }
 void system_clock_config(){
 		// 10M Hz
@@ -70,10 +70,27 @@ int write_to_LCD(int input,int is_cmd){
 
 
 }
-int offset = 16;
+int shift = 1;
 int Array[16]={0x34,0x37,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20};
 void SysTick_Handler(void){
-	if(offset>0){
+	if(shift>0){
+		write_to_LCD(0x20,0);
+		shift++;
+	}
+	/*else{
+
+		write_to_LCD(0x01,1); //clear
+		write_to_LCD(0xC0,1); // cursor sec row
+		write_to_LCD(0x06,1); //0011 0100
+		write_to_LCD(0x20,0);
+		write_to_LCD(0x34,0); //0011 0100
+		write_to_LCD(0x37,0);
+		write_to_LCD(0xC0,1);
+		write_to_LCD(0x05,1);
+		shift=16;
+	}*/
+	//write_to_LCD(0x10,4);
+	/*if(offset>0){
 		offset--;
 
 		write_to_LCD(0x01,1);
@@ -81,17 +98,26 @@ void SysTick_Handler(void){
 			write_to_LCD(Array[(i + offset)%16],0);
 		}
 	}
-	//else{
-
 	//}
+	else{
+		offset = 16;
 
+		write_to_LCD(0x01,1);
+		for(int i=0;i<40;i++){
+			write_to_LCD(0x20,0);
+		}
+		for(int i=0;i<16;i++){
+			write_to_LCD(Array[(i + offset)%16],0);
+		}
+	}
+	*/
 }
 void init_LCD(){
 	write_to_LCD(0x38,1);//function setting 00110000
 	write_to_LCD(0x06,1);
 	write_to_LCD(0x0e,1); //display on  00001110
 	write_to_LCD(0x01,1);//clear screen  00000001
-	write_to_LCD(0x80,1);//MOVE to top left 0000 0010
+	write_to_LCD(0x02,1);//MOVE to top left 0000 0010
 }
 
 
@@ -102,20 +128,19 @@ int main(){
 	GPIO_init();
 	init_LCD();
 	systick_init();
+	write_to_LCD(0x20,0);
+	write_to_LCD(0x34,0); //0011 0100
+	write_to_LCD(0x37,0);
+	write_to_LCD(0x05,1);
+	write_to_LCD(0x02,1);//MOVE to top left 0000 0010
 
-		write_to_LCD(0x34,0); //0011 0100
-		write_to_LCD(0x37,0);
-
-
+	//for(int i=2;i<32;i++){
+	//	write_to_LCD(0x20,0);
+		//write_to_LCD(0x34,0); //0011 0100
+		//write_to_LCD(0x37,0);
+	//}
+    //write_to_LCD(0x80,1);
+    //write_to_LCD(0x40,1);
 
 }
-/*
-PB 3 3.3
-PB 4 3.3
-PB 5 3.3
-PB 2 3.3
-PB 1 3.3
-PB 0 3.3
-PB 6 3.3
-PB 7 3.3
-*/
+
