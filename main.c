@@ -1,7 +1,8 @@
 #include <stdint.h>
 #include "stm32l476xx.h"
 #include "core_cm4.h"
-#define LCD_RSPin 13
+#include <string.h>
+#define LCD_RSPin 1
 #define LCD_RWPin 5
 #define LCD_ENPin 6
 void systick_init(){
@@ -32,9 +33,8 @@ void system_clock_config(){
 void GPIO_init(){
 	RCC->AHB2ENR = RCC->AHB2ENR | 0x7;
 
-	GPIOC->MODER = (GPIOC->MODER & 0x03ffffff) | 0x54000000;
-	GPIOC->PUPDR = (GPIOC->PUPDR & 0x03ffffff) | 0xA8000000;
-	GPIOC->OSPEEDR = (GPIOC->OSPEEDR & 0x03ffffff) | 0x54000000;
+	GPIOC->MODER = (GPIOC->MODER & 0xf3ffffff);
+
 	GPIOB->MODER =  (GPIOB->MODER & 0xffff0000) |0x5555 ;
 	GPIOB->PUPDR = (GPIOB->PUPDR & 0xffff0000) | 0xAAAA;
 	GPIOB->OSPEEDR = (GPIOB->OSPEEDR & 0xffff0000) | 0x5555;
@@ -55,9 +55,9 @@ void wait(){
 }
 int write_to_LCD(int input,int is_cmd){
     if(is_cmd==1)
-    		GPIOC->BRR |= 1 <<(LCD_RSPin );
+    		GPIOA->BRR |= 1 <<(LCD_RSPin );
     	else
-    		GPIOC->BSRR |= 1 << (LCD_RSPin);
+    		GPIOA->BSRR |= 1 << (LCD_RSPin);
     	GPIOA->BRR |= 1 <<(LCD_RWPin);
     GPIOB->BRR |= 0xff;
     	GPIOB->BSRR |= input;
@@ -65,9 +65,6 @@ int write_to_LCD(int input,int is_cmd){
     	wait();
     	GPIOA->BRR |= 1<< (LCD_ENPin);
     	wait();
-
-
-
 }
 int offset = 16;
 int addr=0;
@@ -75,7 +72,12 @@ int Array[16]={0x34,0x37,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,
 int prefix = 0x80;
 int t_prefix = 0xC0;
 int counter = 0;
+int mode = 1;
+char str[] = "Szjin, I love you";
+int s_len;
+int count;
 void SysTick_Handler(void){
+	if(mode == 1){
 	if(counter >= 16){
 		prefix = 0xC0;
 		t_prefix = 0x80;
@@ -102,38 +104,66 @@ void SysTick_Handler(void){
 	counter++;
 	counter%=32;
 	write_to_LCD(0x02,1);
-
-	/*
-	if(offset>0){
-		offset--;
-
-		write_to_LCD(0x01,1);
-		for(int i=0;i<16;i++){
-			write_to_LCD(Array[(i + offset)%16],0);
-		}
 	}
-	//else{
+	else{
+		if(count == s_len)
+			return;
+		int c = str[count];
+		if(count == 16)
+			write_to_LCD(0x80 + 0x40 ,1); // jump to sec row
+		count++;
+		write_to_LCD(c ,0);
 
-	//}
-	*/
+
+	}
 }
 void init_LCD(){
 	write_to_LCD(0x38,1);//function setting 00110000
 	write_to_LCD(0x06,1);
-	write_to_LCD(0x0e,1); //display on  00001110
+	write_to_LCD(0x0c,1); //display on  00001110
 	write_to_LCD(0x01,1);//clear screen  00000001
 	write_to_LCD(0x80,1);//MOVE to top left 0000 0010
 }
+void EXTI_Setup(){
 
+	RCC->APB2ENR |= 0x1;
+	SYSCFG->EXTICR[3] = 0 ;
+	SYSCFG->EXTICR[3] |= (uint32_t) 0x20 ;// PC13
+	EXTI->IMR1 |= 1 << 13;
+	EXTI->FTSR1 = 1 << 13;
+	NVIC->ISER[1] |= 1 << 8;
+	NVIC_SetPriority(40,1);
+	NVIC_SetPriority(-1,6);
+}
 
+void EXTI13_IRQHandler(void){
+	debounce();
+	int press = GPIOC->IDR;
+	write_str_to_LCD();
+	EXTI->PR1 |= 1 << 13; //clear pending
+}
+void debounce(){
+	int k =0 ;
+	for(int i=5500;i>=0;i--){
+		k++;
+	}
+}
 
+void write_str_to_LCD(){
+	write_to_LCD(0x01,1); //clear display
+	mode = 2;
+	count = 0;
+	write_to_LCD(0x80,1);
+
+}
 
 int main(){
+	s_len = strlen(str);
 	system_clock_config();
 	GPIO_init();
 	init_LCD();
 	systick_init();
-
+	EXTI_Setup();
 	write_to_LCD(0x40,1); //set CG RAM 0100 0000
 
 	write_to_LCD(0x04,0); //0000 0000
@@ -145,9 +175,7 @@ int main(){
 	write_to_LCD(0x04,0); //0000 1110
 	write_to_LCD(0x00,0);
 
-	//write_to_LCD(0x80,1);
-	//write_to_LCD(0,0);
-	//write_to_LCD(0,0);
+
 
 }
 
