@@ -2,6 +2,7 @@
 #include "stm32l476xx.h"
 #include "core_cm4.h"
 #include <string.h>
+#include "onewire.h"
 #define LCD_RSPin 1
 #define LCD_RWPin 5
 #define LCD_ENPin 6
@@ -73,7 +74,7 @@ int prefix = 0x80;
 int t_prefix = 0xC0;
 int counter = 0;
 int mode = 1;
-char str[] = "Szjin, I love you";
+char str[] = "This is a test";
 int s_len;
 int count;
 void SysTick_Handler(void){
@@ -135,12 +136,12 @@ void EXTI_Setup(){
 	EXTI->IMR1 |= 1 << 13;
 	EXTI->RTSR1 = 1 << 13;
 	NVIC->ISER[1] |= 1 << 8;
-	NVIC_SetPriority(40,1);
-	NVIC_SetPriority(-1,6);
+	NVIC_SetPriority(40,-1);
+	NVIC_SetPriority(-1,10);
 }
 
 void EXTI13_IRQHandler(void){
-	debounce();
+	//debounce();
 	int press = GPIOC->IDR;
 	if(mode == 1){
 
@@ -149,7 +150,7 @@ void EXTI13_IRQHandler(void){
 	}
 	else{
 		write_to_LCD(0x01,1);
-		write_to_LCD(0x80,1);
+
 		mode = 1;
 	}
 	EXTI->PR1 |= 1 << 13; //clear pending
@@ -185,7 +186,8 @@ int main(){
 	write_to_LCD(0x00,0); // 0001 1011
 	write_to_LCD(0x04,0); //0000 1110
 	write_to_LCD(0x00,0);
-
+	OneWire_t one_wire;
+	OneWire_Init(&one_wire, GPIOA, 7);
 
 
 }
