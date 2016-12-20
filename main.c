@@ -106,8 +106,11 @@ void SysTick_Handler(void){
 	write_to_LCD(0x02,1);
 	}
 	else{
-		if(count == s_len)
+		if(count == s_len){
+			count = 0;
+			write_to_LCD(0x01,1);
 			return;
+		}
 		int c = str[count];
 		if(count == 16)
 			write_to_LCD(0x80 + 0x40 ,1); // jump to sec row
@@ -130,7 +133,7 @@ void EXTI_Setup(){
 	SYSCFG->EXTICR[3] = 0 ;
 	SYSCFG->EXTICR[3] |= (uint32_t) 0x20 ;// PC13
 	EXTI->IMR1 |= 1 << 13;
-	EXTI->FTSR1 = 1 << 13;
+	EXTI->RTSR1 = 1 << 13;
 	NVIC->ISER[1] |= 1 << 8;
 	NVIC_SetPriority(40,1);
 	NVIC_SetPriority(-1,6);
@@ -139,7 +142,16 @@ void EXTI_Setup(){
 void EXTI13_IRQHandler(void){
 	debounce();
 	int press = GPIOC->IDR;
-	write_str_to_LCD();
+	if(mode == 1){
+
+		mode = 2;
+		write_str_to_LCD();
+	}
+	else{
+		write_to_LCD(0x01,1);
+		write_to_LCD(0x80,1);
+		mode = 1;
+	}
 	EXTI->PR1 |= 1 << 13; //clear pending
 }
 void debounce(){
@@ -151,7 +163,6 @@ void debounce(){
 
 void write_str_to_LCD(){
 	write_to_LCD(0x01,1); //clear display
-	mode = 2;
 	count = 0;
 	write_to_LCD(0x80,1);
 
