@@ -4,7 +4,6 @@
 #define LCD_RSPin 13
 #define LCD_RWPin 5
 #define LCD_ENPin 6
-
 void systick_init(){
 	SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
@@ -88,15 +87,15 @@ void SysTick_Handler(void){
 	if(addr == 14){
 		write_to_LCD(prefix + addr,1);
 		write_to_LCD(0x20,0);
-		write_to_LCD(0x34,0);
-		write_to_LCD(t_prefix ,1);
-		write_to_LCD(0x37,0);
+		write_to_LCD(0,0);
+		//write_to_LCD(t_prefix ,1);
+		//write_to_LCD(0x37,0);
 	}
 	else{
 		write_to_LCD(prefix + addr,1);
 		write_to_LCD(0x20,0);
-		write_to_LCD(0x34,0);
-		write_to_LCD(0x37,0);
+		write_to_LCD(0x0,0);
+		//write_to_LCD(0x37,0);
 	}
 	addr++;
 	addr%=16;
@@ -135,16 +134,20 @@ int main(){
 	init_LCD();
 	systick_init();
 
+	write_to_LCD(0x40,1); //set CG RAM 0100 0000
 
+	write_to_LCD(0x04,0); //0000 0000
+	write_to_LCD(0x0E,0); // 0000 1110
+	write_to_LCD(0x0E,0); // 0001 0101
+	write_to_LCD(0x0E,0);   // 00001 1111
+	write_to_LCD(0x1F,0); // 0001 0101
+	write_to_LCD(0x00,0); // 0001 1011
+	write_to_LCD(0x04,0); //0000 1110
+	write_to_LCD(0x00,0);
+
+	//write_to_LCD(0x80,1);
+	//write_to_LCD(0,0);
+	//write_to_LCD(0,0);
 
 }
-/*
-PB 3 3.3
-PB 4 3.3
-PB 5 3.3
-PB 2 3.3
-PB 1 3.3
-PB 0 3.3
-PB 6 3.3
-PB 7 3.3
-*/
+
