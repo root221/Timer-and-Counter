@@ -9,7 +9,7 @@ void systick_init(){
 	SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
 	SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk;
-	SysTick->LOAD = (uint32_t) 5000000;
+	SysTick->LOAD = (uint32_t) 3000000;
 }
 void system_clock_config(){
 		// 10M Hz
@@ -71,8 +71,40 @@ int write_to_LCD(int input,int is_cmd){
 
 }
 int offset = 16;
+int addr=0;
 int Array[16]={0x34,0x37,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20};
+int prefix = 0x80;
+int t_prefix = 0xC0;
+int counter = 0;
 void SysTick_Handler(void){
+	if(counter >= 16){
+		prefix = 0xC0;
+		t_prefix = 0x80;
+	}
+	else{
+		prefix = 0x80;
+		t_prefix = 0xC0;
+	}
+	if(addr == 14){
+		write_to_LCD(prefix + addr,1);
+		write_to_LCD(0x20,0);
+		write_to_LCD(0x34,0);
+		write_to_LCD(t_prefix ,1);
+		write_to_LCD(0x37,0);
+	}
+	else{
+		write_to_LCD(prefix + addr,1);
+		write_to_LCD(0x20,0);
+		write_to_LCD(0x34,0);
+		write_to_LCD(0x37,0);
+	}
+	addr++;
+	addr%=16;
+	counter++;
+	counter%=32;
+	write_to_LCD(0x02,1);
+
+	/*
 	if(offset>0){
 		offset--;
 
@@ -84,7 +116,7 @@ void SysTick_Handler(void){
 	//else{
 
 	//}
-
+	*/
 }
 void init_LCD(){
 	write_to_LCD(0x38,1);//function setting 00110000
@@ -102,9 +134,6 @@ int main(){
 	GPIO_init();
 	init_LCD();
 	systick_init();
-
-		write_to_LCD(0x34,0); //0011 0100
-		write_to_LCD(0x37,0);
 
 
 
