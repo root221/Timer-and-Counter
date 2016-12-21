@@ -44,7 +44,6 @@ void GPIO_init(){
 	GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff0000) | 0xAAAA;
 	GPIOA->OSPEEDR = (GPIOA->OSPEEDR & 0xffff0000) | 0x5555;
 	GPIOA->OTYPER = 0;
-	//GPIOB->ODR = 0xff;
 }
 
 void wait(){
@@ -68,7 +67,6 @@ int write_to_LCD(int input,int is_cmd){
 }
 int offset = 16;
 int addr=0;
-int Array[16]={0x34,0x37,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20};
 int prefix = 0x80;
 int t_prefix = 0xC0;
 int counter = 0;
@@ -89,29 +87,22 @@ void SysTick_Handler(void){
 		if(addr == 14){
 			write_to_LCD(prefix + addr,1);
 			write_to_LCD(0x20,0);
-			//write_to_LCD(0x34,0);
 			write_to_LCD(0,0);
 			write_to_LCD(t_prefix ,1);
-			//write_to_LCD(0x37,0);
 			write_to_LCD(0x01,0);
 		}
 		else if(addr == 15){
 			write_to_LCD(prefix + addr,1);
 			write_to_LCD(0x20,0);
 			write_to_LCD(t_prefix ,1);
-			//write_to_LCD(0x34,0);
 			write_to_LCD(0,0);
-			//write_to_LCD(0x37,0);
 			write_to_LCD(0x01,0);
 		}
-
 		else{
 			write_to_LCD(prefix + addr,1);
 			write_to_LCD(0x20,0);
 			write_to_LCD(0x0,0);
 			write_to_LCD(0x01,0);
-			//write_to_LCD(0x34,0);
-			//write_to_LCD(0x37,0);
 		}
 		addr++;
 		addr%=16;
@@ -215,10 +206,8 @@ int main(){
 	write_to_LCD(0x09,0); //0000 1110
 	write_to_LCD(0x09,0);
 
-	//
+	//end
 	write_to_LCD(0x80,1);
-	//write_to_LCD(0,0);
-	//write_to_LCD(0x01,0);
 
 
 	systick_init();

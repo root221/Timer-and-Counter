@@ -1,52 +1,22 @@
 #include <stdint.h>
 #include "stm32l476xx.h"
 #include "core_cm4.h"
-extern void display(int key_value);
-extern void MAX7219INIT();
-volatile int state[3] = {0,1,2}; // 0 input, 1 count down, 2 alarm
-volatile int current_state = 0;
-volatile int sec = 10;
-uint32_t TIM_ARR_VAL = 34118;
-uint32_t TIM_PSC_VAL = 0;
-void GPIO_init_AF(){
-	GPIOB->AFR[0] |= GPIO_AFRL_AFSEL3_0;
-}
-void PWM_channel_init(){
-	TIM2->CCR2 = (uint32_t)0;
-	TIM2->CCMR1 |= 110 << 12; // PWN mode1
-	TIM2->CCMR1 |= TIM_CCMR1_OC2PE;
-	TIM2->CR1 |= TIM_CR1_ARPE ;
-	TIM2->CCER |= TIM_CCER_CC2E;
-}
-clear(){
-	TIM2->CR1 &= 0xfffffffe;
-	GPIOB->MODER &= 0xffffff7f;
-	GPIOB->ODR = 0;
-}
-void initailize_timer(){
-	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
-	TIM2->CR1 &= (!(1<<4));
-	TIM2->ARR = (uint32_t)TIM_ARR_VAL;
-	TIM2->PSC = (uint32_t)TIM_PSC_VAL;
-	TIM2->EGR = TIM_EGR_UG;
-}
-void timer_start(){
-	TIM2->CCR2 = (uint32_t)(30339 * 50)/100;
-	TIM2->ARR = (uint32_t)30339;
-	TIM2->CR1 |= 1;
-	GPIOB->MODER &= 0xffffff3f;
-	GPIOB->MODER |= 0x80;
-}
-
-
-
+#include <string.h>
+#include "onewire.h"
+#define LCD_RSPin 1
+#define LCD_RWPin 5
+#define LCD_ENPin 6
+OneWire_t one_wire;
+int systick_count = 0;
+int reso = 11;
+int reso_de[4] = {93750, 187500, 375000, 750000};
+extern void delay(int s);
 
 void systick_init(){
 	SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
 	SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk;
-	SysTick->LOAD = (uint32_t) 1000000;
-
+	SysTick->LOAD = (uint32_t) 6000000;
 }
 void system_clock_config(){
 		// 10M Hz
@@ -55,11 +25,11 @@ void system_clock_config(){
 		while((RCC->CR & RCC_CR_PLLRDY) > 0);
 		RCC->PLLCFGR &= 0xf9ff808f;
 		RCC->PLLCFGR |= 2; //set clock source
-		RCC->PLLCFGR |= RCC_PLLCFGR_PLLN_0;
-		RCC->PLLCFGR |= RCC_PLLCFGR_PLLN_1;
 		RCC->PLLCFGR |= RCC_PLLCFGR_PLLN_2;
 		RCC->PLLCFGR |= RCC_PLLCFGR_PLLN_3;
-		RCC->PLLCFGR |= RCC_PLLCFGR_PLLM_1;
+        RCC->PLLCFGR |= RCC_PLLCFGR_PLLN_4;
+		RCC->PLLCFGR |= RCC_PLLCFGR_PLLN_5;
+        RCC->PLLCFGR |= RCC_PLLCFGR_PLLM_1;
 		RCC->PLLCFGR |= RCC_PLLCFGR_PLLR_0;
 		RCC->PLLCFGR |= RCC_PLLCFGR_PLLR_1;
 		RCC->CR |= RCC_CR_PLLON;
@@ -67,129 +37,198 @@ void system_clock_config(){
 		RCC->PLLCFGR |= RCC_PLLCFGR_PLLREN;
 		RCC->CFGR |= 15;
 }
-
 void GPIO_init(){
-	RCC->AHB2ENR = RCC->AHB2ENR | 0x6 ;
-	//Set PB3,PB4,PB5 as output mode
-	GPIOB->MODER = (GPIOB->MODER & 0xfffff03C) | 0x581;
-	GPIOB->OSPEEDR = GPIOB->OSPEEDR | 0x541;
+	RCC->AHB2ENR = RCC->AHB2ENR | 0xf;
 
+	GPIOC->MODER = (GPIOC->MODER & 0xf3ffffff);
 
-	GPIOC->MODER = (GPIOC->MODER & 0xf3ff0000) | 0x5500;
-	GPIOC->OSPEEDR = GPIOC->OSPEEDR | 0x5500;
-	GPIOC->PUPDR = GPIOC->PUPDR | 0xAA;
-}
-volatile int col = 0;
-void SysTick_Handler(){
-	if(sec==0 && current_state==1){
-		current_state = 2;
-		//TODO start alarm
-		timer_start();
-	}
-	if(current_state == 1){
-		sec--;
-		display(sec);
-		return;
-	}
+	GPIOB->MODER =  (GPIOB->MODER & 0xffff0000) |0x5555 ;
+	GPIOB->PUPDR = (GPIOB->PUPDR & 0xffff0000) | 0xAAAA;
+	GPIOB->OSPEEDR = (GPIOB->OSPEEDR & 0xffff0000) | 0x5555;
+	GPIOB->OTYPER = 0;
 
-	NVIC->ICER[0] = (uint32_t) 0x3C0;
-	col++;
-	col %= 4;
-	//GPIOC->ODR = 0;
-	GPIOC->ODR = 1 << (col + 4);
-	NVIC->ISER[0] = (uint32_t) 0x3C0;
-
-	//EXTI->PR1 |= 0xf;
-	//EXTI_Setup();
-
+	GPIOA->MODER =  (GPIOA->MODER & 0xffff0000) |0x5555 ;
+	GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff0000) | 0xAAAA;
+	GPIOA->OSPEEDR = (GPIOA->OSPEEDR & 0xffff0000) | 0x5555;
+	GPIOA->OTYPER = 0;
 
 }
 
+int write_to_LCD(int input,int is_cmd){
+    if(is_cmd==1)
+    		GPIOA->BRR |= 1 <<(LCD_RSPin );
+    	else
+    		GPIOA->BSRR |= 1 << (LCD_RSPin);
+    	GPIOA->BRR |= 1 <<(LCD_RWPin);
+	GPIOB->BRR |= 0xff;
+    	GPIOB->BSRR |= input;
+    	GPIOA->BSRR |= 1 << (LCD_ENPin);
+    	wait();
+    	GPIOA->BRR |= 1<< (LCD_ENPin);
+    	wait();
+}
+int wait(){
+	int k=0;
+	for(int i=0;i<50000;i++){
+		k++;
+	}
+	return 1;
+}
+int addr=0;
+int prefix = 0x80;
+int t_prefix = 0xC0;
+int counter = 0;
+int mode = 1;
+int count;
+void SysTick_Handler(void){
+	systick_count++;
+	if(mode == 1){
+		if(systick_count < 2)
+			return;
+		systick_count = 0;
+		if(counter >= 16){
+			prefix = 0xC0;
+			t_prefix = 0x80;
+		}
+		else{
+			prefix = 0x80;
+			t_prefix = 0xC0;
+		}
+		if(addr == 14){
+			write_to_LCD(prefix + addr,1);
+			write_to_LCD(0x20,0);
+			write_to_LCD(0,0);
+			write_to_LCD(t_prefix ,1);
+			write_to_LCD(0x01,0);
+		}
+		else if(addr == 15){
+			write_to_LCD(prefix + addr,1);
+			write_to_LCD(0x20,0);
+			write_to_LCD(t_prefix ,1);
+			write_to_LCD(0,0);
+			write_to_LCD(0x01,0);
+		}
+
+		else{
+			write_to_LCD(prefix + addr,1);
+			write_to_LCD(0x20,0);
+			write_to_LCD(0x0,0);
+			write_to_LCD(0x01,0);
+		}
+		addr++;
+		addr%=16;
+		counter++;
+		counter%=32;
+		write_to_LCD(0x02,1);
+	}
+	else{
+		if(systick_count < 4)
+			return;
+		systick_count = 0;
+		get_temp();
+	}
+}
+void init_LCD(){
+	write_to_LCD(0x38,1);//function setting 00110000
+	write_to_LCD(0x06,1);
+	write_to_LCD(0x0c,1); //display on  00001110
+	write_to_LCD(0x01,1);//clear screen  00000001
+	write_to_LCD(0x80,1);//MOVE to top left 0000 0010
+}
+void EXTI_Setup(){
+	RCC->APB2ENR |= 0x1;
+	SYSCFG->EXTICR[3] = 0 ;
+	SYSCFG->EXTICR[3] |= (uint32_t) 0x20 ;// PC13
+	EXTI->IMR1 |= 1 << 13;
+	EXTI->RTSR1 = 1 << 13;
+	NVIC->ISER[1] |= 1 << 8;
+	NVIC_SetPriority(40,-2);
+	NVIC_SetPriority(-1,10);
+}
+
+void EXTI13_IRQHandler(void){
+	write_to_LCD(0x01,1);
+	if(mode == 1){
+        mode = 2;
+	}
+	else{
+		mode = 1;
+	}
+	write_to_LCD(0x01,1);
+	EXTI->PR1 |= 1 << 13; //clear pending
+}
 void debounce(){
 	int k =0 ;
 	for(int i=5500;i>=0;i--){
 		k++;
 	}
 }
-void EXTI_Setup(){
 
-	RCC->APB2ENR |= 0x1;
-	SYSCFG->EXTICR[0] = 0;
-	SYSCFG->EXTICR[0] |= (uint32_t)0x2222; // 0 010 PC
-	SYSCFG->EXTICR[3] = 0 ;
-	SYSCFG->EXTICR[3] |= (uint32_t) 0x20 ;// PC13
-
-	EXTI->IMR1 = (uint32_t) 0xF;
-	EXTI->IMR1 |= 1 << 13;
-
-	EXTI->RTSR1 = (uint32_t) 0xF;
-	EXTI->FTSR1 = 1 << 13;
-	NVIC->ISER[1] |= 1 << 8;
-	NVIC_SetPriority(6, (uint32_t)5);
-	NVIC_SetPriority(7, 5);
-	NVIC_SetPriority(8, 5);
-	NVIC_SetPriority(9, 5);
-	NVIC_SetPriority(-1,6);
+void display(int temp){
+	temp *= 625;
+	int c = 0;
+	write_to_LCD(0x80, 1);
+	int arr[12];
+	while(temp != 0){
+		if (c==4){
+			arr[c] =  0x2E;
+			c++;
+		}
+		arr[c] = 0x30 +(temp % 10);
+		c++;
+		temp /= 10;
+	}
+	for(int i=c-1;i>-1;i--){
+		write_to_LCD(arr[i], 0);
+	}
 }
-volatile int key = 0;
-volatile int Array[16]={1,2,3,10,4,5,6,11,7,8,9,12,15,0,14,13};
-
-void EXTI13_IRQHandler(void){
-	if(current_state == 0){
-		SysTick->LOAD = (uint32_t) 10000000;
-		sec = key;
-		if(sec>0)
-			current_state = 1; //count down
-
-	}
-	else if(current_state == 2){
-		current_state = 0;
-		SysTick->LOAD = (uint32_t) 1000000;
-		//TODO close alarm
-		clear();
-	}
-	EXTI->PR1 |= 1 << 13; // clear pending
+void get_temp(){
+	OneWire_Reset(&one_wire);
+	OneWire_SkipROM(&one_wire);
+	DS18B20_SetResolution(&one_wire, reso);
+	OneWire_Reset(&one_wire);
+	OneWire_SkipROM(&one_wire);
+	DS18B20_ConvT(&one_wire);
+	delay(reso_de[reso-9]);
+	while(DS18B20_Done(&one_wire));
+	int temp;
+	OneWire_Reset(&one_wire);
+	OneWire_SkipROM(&one_wire);
+	DS18B20_Read(&one_wire,&temp);
+	display(temp);
 }
 
-void EXTI0_IRQHandler(void){
-	if(current_state != 0){
-		EXTI->PR1 |= 0xf;
-		return;
-	}
-	int value = EXTI->PR1;
-	if(value==1)
-		value = 0;
-	else if(value==2)
-		value = 1;
-	else if(value==4)
-		value = 2;
-	else if(value==8)
-		value = 3;
-
-	if(Array[4*value+col]==0){
-		EXTI->PR1 |= 0xf;
-		return;
-	}
-	key = Array[4*value+col];
-
-	display(key);
-	debounce();
-	EXTI->PR1 |= 0xf;
-
-}
 
 int main(){
 	system_clock_config();
 	GPIO_init();
-	systick_init();
-	GPIO_init_AF();
-	initailize_timer();
-	PWM_channel_init();
-	MAX7219INIT();
+
+	init_LCD();
 	EXTI_Setup();
+	// make symbol
+	write_to_LCD(0x40,1); //set CG RAM 0100 0000
+	write_to_LCD(0x04,0); //0000 0000
+	write_to_LCD(0x0E,0); // 0000 1110
+	write_to_LCD(0x0E,0); // 0001 0101
+	write_to_LCD(0x0E,0); // 00001 1111
+	write_to_LCD(0x1F,0); // 0001 0101
+	write_to_LCD(0x00,0); // 0001 1011
+	write_to_LCD(0x04,0); //0000 1110
+	write_to_LCD(0x00,0);
 
-	while(1){
+	write_to_LCD(0x14,0); //0000 0000
+	write_to_LCD(0x03,0); // 0011 1110
+	write_to_LCD(0x1E,0); // 0001 0101
+	write_to_LCD(0x1F,0); // 00001 1111
+	write_to_LCD(0x07,0); // 0001 0101
+	write_to_LCD(0x0f,0); // 0001 1011
+	write_to_LCD(0x09,0); //0000 1110
+	write_to_LCD(0x09,0);
 
+	//
+	write_to_LCD(0x80,1);
+	OneWire_Init(&one_wire, GPIOD, 2);
+	systick_init();
 
-	}
 }
+
